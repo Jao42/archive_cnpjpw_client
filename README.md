@@ -1,6 +1,6 @@
 # O que é?
 
-O caso de uso de algumas pessoas se baseia no uso em massa dos dados extraidos pelo scraper do cnpjpw, como eu [não estou disposto a abrir o código do scraper](https://github.com/cnpjpw/cnpjpw/issues/2), armazenei todas as suas execuções e disponibilizei no https://archive.cnpj.pw para tentar evitar carga desnecessária na API e disponibilizar mais facilmente os dados obtidos para essas pessoas. Esse repositório se trata então de um exemplo de client que consume o archive.
+O caso de uso de algumas pessoas se baseia no uso em massa dos dados extraidos pelo scraper do cnpjpw, então, armazenei todas as suas execuções e disponibilizei no https://archive.cnpj.pw. Esse repositório se trata então de um exemplo de client que consome o archive.
 
 ## Como usar
 

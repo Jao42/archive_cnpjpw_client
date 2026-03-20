@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 import requests
 import zipfile
+import json
 
 
 def baixar_e_descompactar_stream(url, tmp_dir):
@@ -40,7 +41,7 @@ def carregar_csv_banco(nome_tabela, csv_path, conn, chunk_size=10000):
         conn.commit()
 
 
-def buscar_empresa(conn, cnpj_base, cnpj_ordem, cnpj_dv):
+def pegar_empresas_json(conn, dia):
     query = """
     SELECT json_object(
         -- empresas
@@ -113,18 +114,6 @@ def buscar_empresa(conn, cnpj_base, cnpj_ordem, cnpj_dv):
             FROM socios s
             LEFT JOIN qualificacoes_socios qs ON s.qualificacao = qs.codigo
             WHERE s.cnpj_base = est.cnpj_base
-        ),
-
-        -- cnaes secundarios (JSON)
-        'cnaes_fiscais_secundarios', (
-            SELECT json_group_array(
-                json_object(
-                    'codigo', c2.codigo,
-                    'descricao', c2.descricao
-                )
-            )
-            FROM json_each(est.cnaes_fiscais_secundarios) cs
-            LEFT JOIN cnaes c2 ON c2.codigo = cs.value
         )
     )
     FROM estabelecimentos est
@@ -138,16 +127,17 @@ def buscar_empresa(conn, cnpj_base, cnpj_ordem, cnpj_dv):
     LEFT JOIN identificador_matriz_filial imf ON est.identificador = imf.codigo
     LEFT JOIN portes_empresas pe ON pe.codigo = e.porte_empresa
     LEFT JOIN situacoes_cadastrais sc ON sc.codigo = est.situacao_cadastral
-    WHERE est.cnpj_base = ?
-      AND est.cnpj_ordem = ?
-      AND est.cnpj_dv = ?;
+    WHERE est.data_inicio_atividade = ?
     """
 
     cur = conn.cursor()
-    cur.execute(query, (cnpj_base, cnpj_ordem, cnpj_dv))
-    result = cur.fetchone()
+    cur.execute(query, (dia, ))
+    results = [json.loads(i[0]) for i in cur.fetchall()]
+    results_json = json.dumps(
+      results, sort_keys=True, indent=2, ensure_ascii=False
+    )
 
-    return result[0] if result else None
+    return str(results_json)
 
 def carregar_auxiliares_banco(conn, tmp_dir):
     auxiliares_para_tabelas = {
@@ -199,6 +189,8 @@ executar_sql_arquivo(conn, PATH_SCRIPT / 'criar_tabelas.sql')
 (PATH_SCRIPT / 'tmp').mkdir(exist_ok=True)
 tmp_dir = PATH_SCRIPT / 'tmp'
 carregar_auxiliares_banco(conn, tmp_dir)
-carregar_principais_banco(conn, ['15-03-2026', '16-03-2026', '17-03-2026', '18-03-2026', '19-03-2026'], tmp_dir)
+carregar_principais_banco(conn, ['19-03-2026'], tmp_dir)
 executar_sql_arquivo(conn, PATH_SCRIPT / 'criar_indices.sql')
+with open(PATH_SCRIPT / '2026-03-19.json', 'w') as f:
+    f.write(pegar_empresas_json(conn, '2026-03-19'))
 conn.close()
