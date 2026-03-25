@@ -166,17 +166,17 @@ def carregar_auxiliares_banco(conn, tmp_dir):
 
 
 def carregar_principais_banco(conn, dias, tmp_dir):
-    principais_para_tabelas = {
-        "Empresas.csv": "empresas",
-        "Socios.csv": "socios",
-        "Estabelecimentos.csv": "estabelecimentos",
-        "Simples.csv": "dados_simples",
-    }
+    tabelas_principais = [
+        "empresas",
+        "socios",
+        "estabelecimentos",
+        "dados_simples",
+    ]
     for dia in dias:
         url = 'https://archive.cnpj.pw/dias_passados/' + dia + '.zip'
         baixar_e_descompactar_stream(url, tmp_dir)
-        for arq, tabela_nome in principais_para_tabelas.items():
-            carregar_csv_banco(tabela_nome, (tmp_dir / arq), conn) 
+        for nome_tabela in tabelas_principais:
+            carregar_csv_banco(nome_tabela, (tmp_dir / f'{nome_tabela}.csv'), conn) 
 
 
 PATH_SCRIPT = Path(__file__).parent
