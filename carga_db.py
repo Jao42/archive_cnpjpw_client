@@ -42,6 +42,8 @@ def carregar_csv_banco(nome_tabela, csv_path, conn, chunk_size=10000):
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.reader(f, delimiter=';')
         cols = list(reader)  # remova se NÃO tiver header
+        if not cols:
+            return
         placeholders = ",".join(["?"] * len(cols[0]))
         query = f"INSERT INTO {nome_tabela} VALUES ({placeholders}) ON CONFLICT DO NOTHING"
         batch = []
@@ -182,15 +184,38 @@ def carregar_archives_banco(conn, dia_inicial, tmp_dir):
     carregar_archive_corrente_banco(url, tmp_dir, conn)
 
 
-PATH_SCRIPT = Path(__file__).parent
-Path(PATH_SCRIPT / 'cnpjpw.db').touch(exist_ok=True)
-conn = sqlite3.connect(PATH_SCRIPT / 'cnpjpw.db')
-executar_sql_arquivo(conn, PATH_SCRIPT / 'criar_tabelas.sql')
+def executar_carga(data_inicial):
+    PATH_SCRIPT = Path(__file__).parent
 
-(PATH_SCRIPT / 'tmp').mkdir(exist_ok=True)
-tmp_dir = PATH_SCRIPT / 'tmp'
-carregar_auxiliares_banco(conn, tmp_dir)
-dia_inicial = datetime(2026, 3, 14, tzinfo=timezone(timedelta(hours=-3)))
-carregar_archives_banco(conn, dia_inicial, tmp_dir)
-executar_sql_arquivo(conn, PATH_SCRIPT / 'criar_indices.sql')
+    db_path = PATH_SCRIPT / 'cnpjpw.db'
+    db_path.touch(exist_ok=True)
+    conn = sqlite3.connect(db_path)
 
+    executar_sql_arquivo(conn, PATH_SCRIPT / 'criar_tabelas.sql')
+
+    tmp_dir = PATH_SCRIPT / 'tmp'
+    tmp_dir.mkdir(exist_ok=True)
+    carregar_auxiliares_banco(conn, tmp_dir)
+    carregar_archives_banco(conn, data_inicial, tmp_dir)
+    executar_sql_arquivo(conn, PATH_SCRIPT / 'criar_indices.sql')
+
+    conn.close()
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 2 or sys.argv[1] == '--help':
+        print(
+"""
+Uso: python carga_db.py DD-MM-YYYY
+baixa todos os dumps do archive do cnpjpw a partir da data informada e carrega no sqlite cnpjpw.db
+"""
+        )
+        sys.exit(1)
+
+    data = datetime.strptime(sys.argv[1], '%d-%m-%Y')
+    data_inicial = datetime(
+        data.year, data.month, data.day,
+        tzinfo=timezone(timedelta(hours=-3))
+    )
+    executar_carga(data_inicial)
